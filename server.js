@@ -20,6 +20,7 @@ const allowedOrigins = [
   'https://enlivenresidency.com',
   'https://www.enlivenresidency.com',
   'http://localhost:5173',
+  'https://hoppscotch.io'
 ];
 
 app.use(cors({
