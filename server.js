@@ -50,9 +50,11 @@ mongoose
 // Middleware
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://enlivenresidency.com',
+  'https://www.enlivenresidency.com',
   'http://localhost:5173',
-
 ];
+
 
 app.use(cors({
   origin: function (origin, callback) {
