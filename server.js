@@ -14,6 +14,15 @@ const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 const nodemailer = require('nodemailer');
 
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+}));
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -56,14 +65,7 @@ const allowedOrigins = [
 ];
 
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS: ' + origin));
-  },
-  credentials: true,
-}));
+
 
 
 
