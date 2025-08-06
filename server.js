@@ -262,18 +262,15 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB Connected');
-    try {
-      app.listen(PORT, () => {
-        console.log(`🚀 Backend server running on port ${PORT}`);
-      });
-    } catch (err) {
-      console.error('Server listen failed:', err);
-    }
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Backend server running on port ${PORT}`);
+    });
   })
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
+
 
 // --- Keep Alive for Railway ---
 setInterval(() => {
