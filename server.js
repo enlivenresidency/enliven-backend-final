@@ -257,7 +257,7 @@ app.delete('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), asyn
 
 
 // --- Connect to Database and Start Server ---
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 mongoose
   .connect(process.env.MONGO_URI)
