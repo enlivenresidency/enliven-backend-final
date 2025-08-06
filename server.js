@@ -2,6 +2,12 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
+console.log('✅ Bootstrapping server...');
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+console.log('🔧 PORT:', process.env.PORT);
+console.log('🔧 MONGO_URI:', process.env.MONGO_URI ? '✔️ Exists' : '❌ Missing');
+
+// --- Required Modules ---
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -9,20 +15,20 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-const Booking = require('./models/booking'); // Adjust path if needed
-const User = require('./models/user'); // Adjust path if needed
+const Booking = require('./models/booking');
+const User = require('./models/user');
 
 const app = express();
 
-// --- Global Process Error Handlers ---
+// --- Global Error Handlers ---
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+  console.error('🔥 Uncaught Exception:', err);
 });
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection:', reason);
+  console.error('🔥 Unhandled Rejection:', reason);
 });
 
-// --- Constants and Configuration ---
+// --- Config ---
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 const PROPERTY_PRICES = {
@@ -36,6 +42,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://hoppscotch.io',
 ];
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -44,7 +51,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// --- Core Middleware ---
+// --- Middleware ---
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
@@ -58,7 +65,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- Authentication & Authorization Middleware ---
+// --- Auth Middleware ---
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -80,12 +87,14 @@ function authorizeRoles(...roles) {
   };
 }
 
-// --- Health Check ---
+// --- Routes ---
+
+// Health Check
 app.get('/', (req, res) => {
-  res.send('Hotel Booking Backend API is running.');
+  res.send('✅ Hotel Booking Backend API is running.');
 });
 
-// --- Auth: Login ---
+// Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -116,7 +125,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// --- Booking Creation ---
+// Booking
 app.post('/api/book', async (req, res) => {
   try {
     const {
@@ -194,7 +203,11 @@ app.post('/api/book', async (req, res) => {
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
-      if (error) console.error('Error sending notification email:', error);
+      if (error) {
+        console.error('📧 Email sending failed:', error);
+      } else {
+        console.log('📧 Email sent:', info.response);
+      }
     });
 
     res.json({
@@ -209,7 +222,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// --- Get All Bookings ---
+// Get All Bookings
 app.get('/api/bookings', authenticateToken, async (req, res) => {
   try {
     const bookings = await Booking.find().sort({ createdAt: -1 });
@@ -220,7 +233,7 @@ app.get('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// --- Update Booking (Admin) ---
+// Update Booking (Admin)
 app.put('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -232,7 +245,7 @@ app.put('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (
   }
 });
 
-// --- Delete Booking (Admin) ---
+// Delete Booking (Admin)
 app.delete('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);
@@ -244,20 +257,25 @@ app.delete('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), asyn
   }
 });
 
-// --- Database Connection and Server Start ---
+// --- DB Connect + Start Server ---
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('MongoDB Connected');
+    console.log('✅ MongoDB Connected');
     try {
       app.listen(PORT, () => {
-        console.log(`Backend server running on port ${PORT}`);
+        console.log(`🚀 Backend server running on port ${PORT}`);
       });
     } catch (err) {
-      console.error('Error starting server:', err);
+      console.error('Server listen failed:', err);
     }
   })
   .catch((err) => {
-    console.error('MongoDB connection error:', err);
+    console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
+
+// --- Keep Alive for Railway ---
+setInterval(() => {
+  console.log('⏳ Keeping container alive...');
+}, 60 * 1000); // Every 1 minute
