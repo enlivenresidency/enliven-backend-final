@@ -23,6 +23,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // --- Constants and Configuration ---
+const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key';
 const PROPERTY_PRICES = {
   Patia: 1200,
@@ -46,7 +47,6 @@ const transporter = nodemailer.createTransport({
 // --- Core Middleware ---
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -58,17 +58,15 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
 // --- Authentication & Authorization Middleware ---
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Extract Bearer token
-
+  const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Forbidden' });
-    req.user = user; // Attach user info to request
+    req.user = user;
     next();
   });
 }
@@ -82,18 +80,14 @@ function authorizeRoles(...roles) {
   };
 }
 
-
-// --- API Routes ---
-
-// Health check endpoint
+// --- Health Check ---
 app.get('/', (req, res) => {
   res.send('Hotel Booking Backend API is running.');
 });
 
-// User login (returns JWT token and user info)
+// --- Auth: Login ---
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-
   if (!username || !password)
     return res.status(400).json({ error: 'Username and password required' });
 
@@ -122,7 +116,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Booking creation
+// --- Booking Creation ---
 app.post('/api/book', async (req, res) => {
   try {
     const {
@@ -136,7 +130,6 @@ app.post('/api/book', async (req, res) => {
       location,
     } = req.body;
 
-    // Basic validation
     if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 64)
       return res.status(400).json({ error: 'Name must be between 2 to 64 characters' });
 
@@ -161,17 +154,13 @@ app.post('/api/book', async (req, res) => {
     if (checkoutDate <= checkinDate)
       return res.status(400).json({ error: 'Check-out date must be after check-in' });
 
-    // Continue with other validations...
-
-    // Calculate pricing
     const bookingPrice = PROPERTY_PRICES[location] || 1200;
-    const nights = Math.ceil((checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24));
+    const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
     const roomsCount = Number(rooms);
     const baseAmount = bookingPrice * nights * roomsCount;
     const gst = baseAmount * 0.12;
     const totalAmount = baseAmount + gst;
 
-    // Create and save booking
     const booking = new Booking({
       name: name.trim(),
       phone: phoneNumber,
@@ -186,7 +175,6 @@ app.post('/api/book', async (req, res) => {
 
     await booking.save();
 
-    // Send notification email
     const mailOptions = {
       from: process.env.SMTP_USER,
       to: process.env.OWNER_EMAIL,
@@ -204,6 +192,7 @@ app.post('/api/book', async (req, res) => {
         Total Amount: ₹${totalAmount.toFixed(2)}
       `
     };
+
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) console.error('Error sending notification email:', error);
     });
@@ -220,7 +209,7 @@ app.post('/api/book', async (req, res) => {
   }
 });
 
-// Get all bookings (protected)
+// --- Get All Bookings ---
 app.get('/api/bookings', authenticateToken, async (req, res) => {
   try {
     const bookings = await Booking.find().sort({ createdAt: -1 });
@@ -231,7 +220,7 @@ app.get('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// Update booking (admin only)
+// --- Update Booking (Admin) ---
 app.put('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -243,7 +232,7 @@ app.put('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (
   }
 });
 
-// Delete booking (admin only)
+// --- Delete Booking (Admin) ---
 app.delete('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);
@@ -255,19 +244,20 @@ app.delete('/api/bookings/:id', authenticateToken, authorizeRoles('admin'), asyn
   }
 });
 
-
-// --- Connect to Database and Start Server ---
-const PORT = process.env.PORT || 5000;
-
+// --- Database Connection and Server Start ---
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('MongoDB Connected');
-    app.listen(PORT, () => {
-      console.log(`Backend server running on port ${PORT}`);
-    });
+    try {
+      app.listen(PORT, () => {
+        console.log(`Backend server running on port ${PORT}`);
+      });
+    } catch (err) {
+      console.error('Error starting server:', err);
+    }
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);
-    process.exit(1); // Exit the process with an error code
+    process.exit(1);
   });
