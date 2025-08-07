@@ -259,7 +259,7 @@ app.put(
 
 // Delete booking (admin only)
 app.delete(
-  '/api/bookings/:id'xcscscC,
+  '/api/bookings/:id',
   authenticateToken,
   authorizeRoles('admin'),
   async (req, res) => {
